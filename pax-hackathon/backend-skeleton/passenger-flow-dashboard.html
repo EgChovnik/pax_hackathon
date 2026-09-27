@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Пассажиропоток Москвы — прогноз по маршрутам</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&display=swap">
+<style>
+:root{
+  --paper:#eef2f7; --panel:#ffffff; --ink:#10233f; --muted:#5b6b82;
+  --line:#d7dfe9; --blue:#1f5fd0; --blue-soft:#e4edfb;
+  --green:#2f9e63; --amber:#e09a2d; --red:#d6402e; --red-soft:#fbe9e6;
+  --shadow:0 1px 3px rgba(16,35,63,.08);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0e1726; --panel:#16223a; --ink:#e8eef7; --muted:#8fa1bb;
+    --line:#2a3a57; --blue:#6aa1f5; --blue-soft:#1d2f4e;
+    --green:#4cc07f; --amber:#e8b25a; --red:#f0705e; --red-soft:#3a2323;
+    --shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0e1726; --panel:#16223a; --ink:#e8eef7; --muted:#8fa1bb;
+  --line:#2a3a57; --blue:#6aa1f5; --blue-soft:#1d2f4e;
+  --green:#4cc07f; --amber:#e8b25a; --red:#f0705e; --red-soft:#3a2323;
+  --shadow:0 1px 3px rgba(0,0,0,.4);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:15px/1.45 "PT Sans","Segoe UI",Arial,sans-serif;font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+
+header{background:#10233f;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));margin-top:calc(-1 * env(safe-area-inset-top,0px))}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:30px;height:30px;border-radius:50%;background:#1f5fd0;display:grid;place-items:center;font-weight:700}
+.brand h1{font-size:17px;margin:0}
+.brand span{display:block;font-size:12px;color:#9fb3d1;font-weight:400}
+.horizon{display:flex;background:#1b3155;border-radius:8px;padding:3px;gap:3px;margin-left:auto}
+.horizon button{border:0;background:transparent;color:#b9c9e2;padding:6px 14px;border-radius:6px;font-weight:700}
+.horizon button[aria-pressed="true"]{background:#fff;color:#10233f}
+.hdr-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hdr-btn{border:1px solid #35507c;background:transparent;color:#dbe6f5;border-radius:7px;padding:6px 12px}
+.hdr-btn:hover{background:#1b3155}
+.src-chip{font-size:12.5px;color:#9fb3d1;border:1px dashed #35507c;border-radius:20px;padding:3px 11px}
+input[type=file]{display:none}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;padding:14px 20px 0}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 14px;box-shadow:var(--shadow)}
+.kpi b{font-size:22px;display:block;line-height:1.15}
+.kpi small{color:var(--muted)}
+.kpi .up{color:var(--red)}.kpi .down{color:var(--green)}.kpi .flat{color:var(--muted)}
+.kpi--alert b{color:var(--red)}
+
+.grid{display:grid;grid-template-columns:265px 1fr 285px;gap:12px;padding:12px 20px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.card h2{font-size:14.5px;margin:0;padding:12px 14px 8px;font-weight:700}
+.card .body{padding:0 14px 13px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px}
+.field select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--ink)}
+
+.alerts{margin-top:4px}
+.alert{width:100%;text-align:left;border:1px solid var(--line);border-left:4px solid var(--red);
+  background:var(--panel);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:block}
+.alert:hover{border-color:var(--blue)}
+.alert b{font-size:13.5px}
+.alert small{display:block;color:var(--muted);font-size:12.5px}
+.alert .pill{float:right;background:var(--red-soft);color:var(--red);border-radius:20px;padding:1px 8px;font-size:12px;font-weight:700}
+.alert--amber{border-left-color:var(--amber)}.alert--amber .pill{background:transparent;color:var(--amber)}
+.empty{color:var(--muted);font-size:13px;padding:6px 2px}
+
+.map-card{overflow:hidden}
+.map-head{display:flex;align-items:baseline;gap:10px;padding:12px 14px 4px;flex-wrap:wrap}
+.map-head h2{padding:0;flex:1 1 auto}
+.badge{font-size:12px;border-radius:20px;padding:2px 10px;font-weight:700}
+.badge--ok{background:#e3f4ea;color:#1d7a48}
+.badge--info{background:var(--blue-soft);color:var(--blue)}
+:root[data-theme="dark"] .badge--ok,:root:not([data-theme="light"]) .badge--ok{background:#1d3a2b}
+.mapwrap{position:relative}
+.mapwrap svg{display:block;width:100%;height:auto}
+.legend{display:flex;gap:16px;align-items:center;padding:6px 14px 10px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.lg{display:flex;align-items:center;gap:5px}
+.lg i{width:14px;height:4px;border-radius:2px;display:inline-block}
+.tooltip{position:absolute;pointer-events:none;background:var(--ink);color:var(--paper);
+  font-size:12.5px;padding:6px 9px;border-radius:7px;opacity:0;transform:translate(-50%,-115%);white-space:nowrap;z-index:5}
+
+.timeline{display:flex;align-items:center;gap:12px;padding:4px 14px 14px}
+.play{width:36px;height:36px;border-radius:50%;background:var(--blue);color:#fff;font-size:14px;display:grid;place-items:center;border:0}
+.timeline input[type=range]{flex:1;accent-color:var(--blue)}
+.tl-clock{font-weight:700;min-width:96px;text-align:right}
+
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.preset{border:1px solid var(--line);background:var(--panel);border-radius:20px;padding:4px 12px;font-size:13px}
+.preset[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.coef{margin-bottom:12px}
+.coef-top{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:2px}
+.coef input[type=range]{width:100%;accent-color:var(--blue)}
+.delta-box{border-top:1px dashed var(--line);margin-top:6px;padding-top:10px}
+.delta-num{font-size:24px;font-weight:700}
+.delta-num.up{color:var(--red)}.delta-num.down{color:var(--green)}.delta-num.flat{color:var(--muted)}
+.delta-note{font-size:12.5px;color:var(--muted)}
+.reset-link{background:none;border:0;color:var(--blue);padding:0;font-size:13px;text-decoration:underline}
+
+.tabs-card{margin:0 20px 20px}
+.tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:6px 10px 0;flex-wrap:wrap}
+.tabbar button{border:0;background:none;padding:9px 14px;color:var(--muted);font-weight:700;
+  border-bottom:3px solid transparent;margin-bottom:-1px}
+.tabbar button[aria-selected="true"]{color:var(--blue);border-bottom-color:var(--blue)}
+.tabpane{padding:14px}
+.chart-note{font-size:12.5px;color:var(--muted);margin:2px 0 8px}
+.chart-legend{display:flex;gap:18px;font-size:12.5px;color:var(--muted);padding-top:6px;flex-wrap:wrap}
+.cl{display:flex;align-items:center;gap:6px}
+.cl i{width:18px;height:0;border-top:3px solid var(--blue);display:inline-block}
+.cl i.dash{border-top-style:dashed;border-color:var(--muted)}
+.cl i.band{width:14px;height:12px;background:var(--blue-soft);border:0}
+
+.factors{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.factor{border:1px solid var(--line);border-radius:10px;padding:12px}
+.factor h3{margin:0 0 3px;font-size:14.5px}
+.factor .src{font-size:12.5px}.factor .src a{color:var(--blue)}
+.factor .upd{font-size:12px;color:var(--muted);margin:2px 0 8px}
+.impact-bar{height:8px;border-radius:4px;background:var(--blue-soft);overflow:hidden}
+.impact-bar i{display:block;height:100%;background:var(--blue)}
+.impact-cap{font-size:12.5px;color:var(--muted);margin-top:4px}
+
+.recs th,.recs td{padding:8px 10px;text-align:left;font-size:13.5px;border-bottom:1px solid var(--line)}
+.recs th{color:var(--muted);font-weight:400;font-size:12.5px}
+.recs .act{font-weight:700;color:var(--blue)}
+.recs .eff{color:var(--green)}
+.recs-wrap{overflow-x:auto}
+.recs{border-collapse:collapse;width:100%;min-width:640px}
+
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);max-width:560px;width:92%;padding:0}
+dialog::backdrop{background:rgba(10,20,40,.5)}
+.dlg-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line)}
+.dlg-head h2{margin:0;font-size:15.5px}
+.dlg-body{padding:14px 16px}
+.dlg-body textarea{width:100%;height:180px;border:1px solid var(--line);border-radius:8px;
+  background:var(--paper);color:var(--ink);font:12.5px/1.5 ui-monospace,Consolas,monospace;padding:9px;resize:vertical}
+.dlg-foot{display:flex;gap:10px;justify-content:flex-end;padding:0 16px 16px}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 16px}
+.btn--primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+
+footer{padding:0 20px 26px;color:var(--muted);font-size:12.5px}
+@media (max-width:1080px){.grid{grid-template-columns:230px 1fr}.coef-card{grid-column:1 / -1}}
+@media (max-width:760px){
+  .grid{grid-template-columns:1fr;padding:10px 12px}
+  .kpis{padding:10px 12px 0}header{padding-left:12px;padding-right:12px}
+  .tabs-card{margin:0 12px 16px}footer{padding:0 12px 20px}
+  .horizon{margin-left:0;order:3;width:100%}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">П</div>
+    <div><h1>Пассажиропоток</h1><span>почасовой прогноз по маршрутам</span></div>
+  </div>
+  <div class="horizon" role="group" aria-label="Горизонт прогноза">
+    <button aria-pressed="true"  data-h="day">День</button>
+    <button aria-pressed="false" data-h="month">Месяц</button>
+    <button aria-pressed="false" data-h="year">Год</button>
+  </div>
+  <div class="hdr-actions">
+    <span class="src-chip" id="srcChip">данные: демо</span>
+    <label class="hdr-btn" for="csvInput">Загрузить submission.csv</label>
+    <input type="file" id="csvInput" accept=".csv,text/csv">
+    <button class="hdr-btn" id="apiBtn" title="Подтянуть прогноз из FastAPI на localhost:8000">API</button>
+    <button class="hdr-btn" id="themeBtn">Тема: авто</button>
+    <button class="hdr-btn" id="exportBtn">Экспорт CSV</button>
+  </div>
+</header>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid">
+  <div>
+    <section class="card" style="margin-bottom:12px">
+      <h2>Параметры прогноза</h2>
+      <div class="body">
+        <div class="field"><label for="daySel">Дата</label><select id="daySel"></select></div>
+        <div class="field"><label for="routeSel">Маршрут</label><select id="routeSel"></select></div>
+      </div>
+    </section>
+    <section class="card">
+      <h2>Перегрузки за выбранный день</h2>
+      <div class="body alerts" id="alerts"></div>
+    </section>
+  </div>
+
+  <section class="card map-card">
+    <div class="map-head">
+      <h2 id="mapTitle">Карта загрузки</h2>
+      <span class="badge badge--ok" id="domainBadge">Прогноз модели</span>
+    </div>
+    <div class="mapwrap">
+      <svg id="map" viewBox="0 0 1000 720" role="img" aria-label="Схема маршрутов с загрузкой"></svg>
+      <div class="tooltip" id="tip"></div>
+    </div>
+    <div class="legend">
+      <span>Заполненность:</span>
+      <span class="lg"><i style="background:var(--green)"></i>до 70%</span>
+      <span class="lg"><i style="background:var(--amber)"></i>70–100%</span>
+      <span class="lg"><i style="background:var(--red)"></i>свыше 100%</span>
+      <span class="lg">Толщина линии — пассажиропоток</span>
+    </div>
+    <div class="timeline">
+      <button class="play" id="playBtn" aria-label="Проиграть сутки">▶</button>
+      <input type="range" id="hourSlider" min="0" max="23" value="8" aria-label="Час суток">
+      <span class="tl-clock" id="tlClock"></span>
+    </div>
+  </section>
+
+  <section class="card coef-card">
+    <h2>Сценарий и поправки</h2>
+    <div class="body">
+      <div class="presets" id="presets"></div>
+      <div id="coefs"></div>
+      <div class="delta-box">
+        <div class="delta-num flat" id="deltaNum">±0%</div>
+        <div class="delta-note">к базовому прогнозу модели</div>
+        <button class="reset-link" id="resetCoefs">Сбросить к фактическим условиям</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="card tabs-card">
+  <div class="tabbar" role="tablist">
+    <button role="tab" aria-selected="true"  data-tab="forecast">Прогноз</button>
+    <button role="tab" aria-selected="false" data-tab="week">Профиль недели</button>
+    <button role="tab" aria-selected="false" data-tab="factors">Факторы</button>
+    <button role="tab" aria-selected="false" data-tab="recs">Рекомендации</button>
+  </div>
+  <div class="tabpane" id="tabpane"></div>
+</section>
+
+<footer id="foot">
+  Демо-данные. Загрузите submission.csv кнопкой в шапке — сервис перестроится на прогноз модели
+  (колонки распознаются автоматически). Заполненность: парк каждого маршрута оценён из его
+  типичного пика (~92%), поэтому красное — это аномально тяжёлые часы; реальные вместимость
+  и парк правятся в CONFIG в начале скрипта.
+</footer>
+
+<dialog id="exportDlg">
+  <div class="dlg-head"><h2>Экспорт прогноза</h2><button class="btn" id="dlgClose">Закрыть</button></div>
+  <div class="dlg-body">
+    <p class="chart-note" style="margin-top:0">Выборка по текущим параметрам (маршрут × час × сценарий).</p>
+    <textarea id="csvArea" readonly aria-label="CSV с прогнозом"></textarea>
+  </div>
+  <div class="dlg-foot"><button class="btn btn--primary" id="copyCsv">Скопировать CSV</button></div>
+</dialog>
+
+<script>
+"use strict";
+/* ═══ Настройки под вашу сеть ═══ */
+const CONFIG = {
+  capacity: 90,     // мест в одном ТС
+  vehicles: 12,     // машин на маршруте в пике
+  overload: 0.95,   // порог алерта по заполненности
+  target: 0.92,     // к какой загрузке приводим рекомендацией
+  api: "http://localhost:8000",
+};
+
+const HOUR_PROFILE=[.04,.03,.02,.02,.04,.14,.42,.85,1,.88,.55,.45,.42,.44,.46,.52,.68,.9,.95,.72,.45,.3,.16,.08];
+const DOW_K=[1,1.02,1.03,1.03,1.06,.62,.5];
+const PALETTE=["#1f5fd0","#8a5fd0","#1f9e8f","#d0691f","#c23a6b","#3a7bc2","#6f9a2f","#a24fd0","#2f8ac2","#b0892f","#3fb08f","#d05f7a"];
+
+/* ═══ Хранилище: маршрут × день × час → пассажиры ═══ */
+let DATA=null; // {routes:[{id,name,color}], days:["YYYY-MM-DD"...], map:Map, source:"демо"|...}
+
+const key=(r,d,h)=>r+"|"+d+"|"+h;
+const pax=(r,d,h,k=1)=>(DATA.map.get(key(r,d,h))||0)*k;
+const vehOf=rid=>DATA.veh&&DATA.veh.get(rid)||CONFIG.vehicles;
+const trips=(rid,h)=>Math.max(2,Math.round(vehOf(rid)*
+  (DATA.prof&&DATA.prof.get(rid)?DATA.prof.get(rid)[h]:HOUR_PROFILE[h])));
+const load=(r,d,h,k=1)=>pax(r,d,h,k)/(CONFIG.capacity*trips(r,h));
+
+/* Автокалибровка: профиль рейсов маршрута = его средний профиль спроса
+   (пол 0.15), парк подобран так, чтобы типичный пик был ~92% салона.
+   Реальные вместимость и парк правятся в CONFIG. */
+function calibrate(d){
+  const prof=new Map(),veh=new Map();
+  d.routes.forEach(r=>{
+    const sum=Array(24).fill(0),cnt=Array(24).fill(0);
+    d.days.forEach(day=>{for(let h=0;h<24;h++){
+      const v=d.map.get(key(r.id,day,h));
+      if(v!==undefined){sum[h]+=v;cnt[h]++;}}});
+    const mean=sum.map((s,h)=>cnt[h]?s/cnt[h]:0);
+    const mx=Math.max(1,...mean);
+    const p=mean.map(v=>Math.max(.15,v/mx));
+    let need=0;
+    d.days.forEach(day=>{for(let h=0;h<24;h++){
+      need=Math.max(need,(d.map.get(key(r.id,day,h))||0)/p[h]);}});
+    prof.set(r.id,p);
+    veh.set(r.id,Math.max(4,Math.ceil(need/(CONFIG.capacity*0.92))));
+  });
+  d.prof=prof;d.veh=veh;
+}
+
+function buildDemo(){
+  const routes=[["144",1],["м27",1.25],["908",.8],["с344",.95],["т25",1.1],["263",.7]]
+    .map(([id,s],i)=>({id,name:"Маршрут "+id,color:PALETTE[i%PALETTE.length],scale:s}));
+  const days=[],map=new Map();
+  const start=new Date(); start.setDate(start.getDate()+1); start.setHours(0,0,0,0);
+  for(let d=0;d<61;d++){
+    const dt=new Date(start); dt.setDate(dt.getDate()+d);
+    const ds=dt.toISOString().slice(0,10); days.push(ds);
+    routes.forEach(r=>{ for(let h=0;h<24;h++){
+      const v=900*r.scale*HOUR_PROFILE[h]*DOW_K[(dt.getDay()+6)%7]*(1+.05*Math.sin(d/4+r.scale*7));
+      map.set(key(r.id,ds,h),Math.round(v));
+    }});
+  }
+  return {routes:routes.map(({id,name,color})=>({id,name,color})),days,map,source:"демо"};
+}
+
+/* ═══ Разбор submission.csv (гибкие имена колонок) ═══ */
+const ROUTE_COLS=["route_id","route","route_number","маршрут","bus","line","id_route"];
+const TS_COLS=["ts","ts_start","datetime","date_time","timestamp","time","дата_время"];
+const DATE_COLS=["date","дата","day"]; const HOUR_COLS=["hour","час","hr","h"];
+const VAL_COLS=["pax","pax_in","passengers","prediction","pred","y","value","count","target","пассажиропоток","flow","y_pred"];
+
+function parseTs(s){
+  s=String(s).trim();
+  let m=s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2})/);
+  if(m) return {day:m[1]+"-"+m[2]+"-"+m[3],hour:+m[4]};
+  m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:[T ](\d{1,2}))?/);
+  if(m) return {day:m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0"),
+                hour:m[4]!==undefined?+m[4]:null};
+  m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return {day:s,hour:null};
+  return null;
+}
+
+function parseCsv(text,fname){
+  const delim=(text.slice(0,2000).split(";").length>text.slice(0,2000).split(",").length)?";":",";
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  const head=lines[0].split(delim).map(s=>s.trim().toLowerCase().replace(/^"|"$/g,""));
+  const find=cands=>head.findIndex(h=>cands.includes(h));
+  let iR=find(ROUTE_COLS),iT=find(TS_COLS),iD=find(DATE_COLS),iH=find(HOUR_COLS),iV=find(VAL_COLS);
+  if(iV<0){ // значение = первая числовая колонка, не занятая ключами
+    const probe=lines[1].split(delim);
+    iV=probe.findIndex((v,i)=>i!==iR&&i!==iT&&i!==iD&&i!==iH&&isFinite(parseFloat(String(v).replace(",","."))));
+  }
+  if(iR<0&&head.length===3&&iT>=0){iR=[0,1,2].find(i=>i!==iT&&i!==iV);}
+  if(iR<0||iV<0||(iT<0&&iD<0))
+    throw new Error("Не распознал колонки. Нашёл: "+head.join(", ")+
+      ". Нужны: маршрут ("+ROUTE_COLS.slice(0,3)+"…), время ("+TS_COLS.slice(0,3)+"… или date+hour) и значение ("+VAL_COLS.slice(0,4)+"…).");
+  const map=new Map(),daysSet=new Set(),routesSet=new Set();
+  let bad=0;
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split(delim);
+    const rid=String(c[iR]).trim().replace(/^"|"$/g,"");
+    let t=iT>=0?parseTs(c[iT]):parseTs(c[iD]);
+    if(t&&t.hour===null&&iH>=0)t.hour=parseInt(c[iH]);
+    const v=parseFloat(String(c[iV]).replace(",","."));
+    if(!rid||!t||!isFinite(t.hour)||!isFinite(v)){bad++;continue;}
+    map.set(key(rid,t.day,t.hour),(map.get(key(rid,t.day,t.hour))||0)+v);
+    daysSet.add(t.day);routesSet.add(rid);
+  }
+  if(!map.size) throw new Error("Все строки отбраковались — проверьте формат времени и разделитель.");
+  const routes=[...routesSet].sort((a,b)=>a.localeCompare(b,"ru",{numeric:true}))
+    .map((id,i)=>({id,name:"Маршрут "+id,color:PALETTE[i%PALETTE.length]}));
+  return {routes,days:[...daysSet].sort(),map,
+    source:fname+" ("+map.size+" строк"+(bad?", пропущено "+bad:"")+")"};
+}
+
+/* ═══ Состояние ═══ */
+const state={horizon:"day",route:"all",day:null,hour:8,tab:"forecast",
+  coefs:{rain:1,snow:1,event:1,season:1},preset:null,theme:"auto"};
+const COEF_DEFS=[
+  {key:"rain",label:"Дождь",min:.9,max:1.3},
+  {key:"snow",label:"Снегопад",min:.9,max:1.5},
+  {key:"event",label:"Событие в городе",min:.8,max:1.6},
+  {key:"season",label:"Сезон и каникулы",min:.6,max:1.2}];
+const PRESETS=[
+  {id:"snow",name:"Снегопад",coefs:{rain:1,snow:1.18,event:1,season:1}},
+  {id:"match",name:"Матч в Лужниках",coefs:{rain:1,snow:1,event:1.35,season:1}},
+  {id:"vac",name:"Каникулы",coefs:{rain:1,snow:1,event:1,season:.72}}];
+const kTotal=()=>state.coefs.rain*state.coefs.snow*state.coefs.event*state.coefs.season;
+const $=s=>document.querySelector(s);
+const fmt=n=>Math.round(n).toLocaleString("ru-RU");
+const loadColor=v=>v>1?"var(--red)":v>.7?"var(--amber)":"var(--green)";
+const actRoutes=()=>state.route==="all"?DATA.routes:DATA.routes.filter(r=>r.id===state.route);
+const dayLabel=d=>{const [y,m,dd]=d.split("-");return dd+"."+m+"."+y;};
+const dowOf=d=>(new Date(d+"T12:00").getDay()+6)%7;
+
+/* ═══ КПЭ и алерты ═══ */
+function dayTotal(k){let t=0;DATA.routes.forEach(r=>{for(let h=0;h<24;h++)t+=pax(r.id,state.day,h,k);});return t;}
+function overloadWindows(k){
+  const out=[];
+  DATA.routes.forEach(r=>{let cur=null;
+    for(let h=0;h<24;h++){const L=load(r.id,state.day,h,k);
+      if(L>CONFIG.overload){
+        if(cur&&cur.to===h){cur.to=h+1;cur.peak=Math.max(cur.peak,L);}
+        else{cur={route:r,from:h,to:h+1,peak:L};out.push(cur);}
+      } else cur=null;
+    }});
+  return out.sort((a,b)=>b.peak-a.peak);
+}
+function renderKpis(){
+  const k=kTotal(),base=dayTotal(1),adj=dayTotal(k),ov=overloadWindows(k);
+  const d=base?Math.round((adj/base-1)*100):0;
+  const cls=d>0?"up":d<0?"down":"flat",sign=d>0?"+":"";
+  $("#kpis").innerHTML=`
+    <div class="kpi"><small>Поток за ${dayLabel(state.day)}, поездок</small><b>${fmt(adj)}</b></div>
+    <div class="kpi"><small>Отклонение сценария от базы</small><b class="${cls}">${sign}${d}%</b></div>
+    <div class="kpi ${ov.length?"kpi--alert":""}"><small>Окон перегрузки</small><b>${ov.length}</b></div>
+    <div class="kpi"><small>Пиковая заполненность</small><b>${ov.length?Math.round(ov[0].peak*100)+"%":"—"}</b></div>`;
+}
+function renderAlerts(){
+  const ov=overloadWindows(kTotal()).slice(0,5),box=$("#alerts");
+  if(!ov.length){box.innerHTML=`<p class="empty">Перегрузок не прогнозируется: салоны заполнены не более чем на ${Math.round(CONFIG.overload*100)}%.</p>`;return;}
+  box.innerHTML=ov.map(o=>`
+    <button class="alert ${o.peak<1.05?"alert--amber":""}" data-r="${o.route.id}" data-h="${o.from}">
+      <span class="pill">${Math.round(o.peak*100)}%</span><b>${o.route.name}</b>
+      <small>${String(o.from).padStart(2,"0")}:00–${String(o.to).padStart(2,"0")}:00 — открыть на карте</small>
+    </button>`).join("");
+  box.querySelectorAll(".alert").forEach(b=>b.addEventListener("click",()=>{
+    state.route=b.dataset.r;state.hour=+b.dataset.h;
+    $("#routeSel").value=state.route;$("#hourSlider").value=state.hour;renderAll();
+  }));
+}
+
+/* ═══ Карта: радиальная схема маршрутов ═══ */
+const CX=500,CY=365,RX=458,RY=318;
+const pt=(ratio,aDeg)=>{const a=aDeg*Math.PI/180;
+  return [CX+Math.cos(a)*RX*ratio,CY+Math.sin(a)*RY*ratio];};
+function routeGeom(i,n){
+  const a=-90+360*i/n;
+  const [x1,y1]=pt(.22,a),[x2,y2]=pt(1,a);
+  const [mx,my]=pt(.62,a+(i%2?9:-9));
+  return {a,d:`M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`,lx:pt(1.07,a)};
+}
+function renderMap(){
+  const k=kTotal(),svg=$("#map"),n=DATA.routes.length;
+  const maxPax=Math.max(1,...DATA.routes.map(r=>pax(r.id,state.day,state.hour,k)));
+  let el=`
+  <ellipse cx="${CX}" cy="${CY}" rx="${RX+12}" ry="${RY+12}" fill="none" stroke="var(--line)" stroke-width="10" opacity=".55"/>
+  <ellipse cx="${CX}" cy="${CY-8}" rx="212" ry="152" fill="none" stroke="var(--line)" stroke-width="6" opacity=".8"/>
+  <circle cx="${CX}" cy="${CY}" r="52" fill="none" stroke="var(--line)" stroke-width="4"/>
+  <text x="${CX}" y="${CY+4}" text-anchor="middle" font-size="13" fill="var(--muted)">центр</text>
+  <text x="${CX+RX-24}" y="${CY-RY+4}" font-size="12" fill="var(--muted)">МКАД</text>`;
+  DATA.routes.forEach((r,i)=>{
+    const on=state.route==="all"||state.route===r.id;
+    const p=pax(r.id,state.day,state.hour,k),L=load(r.id,state.day,state.hour,k);
+    const g=routeGeom(i,n),w=on?4+10*p/maxPax:2.5;
+    el+=`<path d="${g.d}" fill="none" stroke="${on?loadColor(L):"var(--line)"}"
+      stroke-width="${w}" stroke-linecap="round" opacity="${on?.95:.35}"
+      class="rt" data-r="${r.id}" style="cursor:pointer" tabindex="${on?0:-1}"
+      role="button" aria-label="${r.name}: ${fmt(p)} пасс/ч, салон ${Math.round(L*100)}%">
+      ${on&&L>1?`<animate attributeName="opacity" values=".95;.55;.95" dur="1.5s" repeatCount="indefinite"/>`:""}</path>`;
+    el+=`<text x="${g.lx[0]}" y="${g.lx[1]}" text-anchor="middle" font-size="12.5" font-weight="700"
+      fill="${on?r.color:"var(--muted)"}" opacity="${on?1:.6}">${r.id}</text>`;
+  });
+  svg.innerHTML=el;
+  const tip=$("#tip"),wrap=$(".mapwrap");
+  svg.querySelectorAll(".rt").forEach(pth=>{
+    const show=()=>{
+      const r=DATA.routes.find(x=>x.id===pth.dataset.r);
+      const p=pax(r.id,state.day,state.hour,kTotal()),L=load(r.id,state.day,state.hour,kTotal());
+      tip.innerHTML=`<b>${r.name}</b><br>${fmt(p)} пасс/ч · салон ${Math.round(L*100)}%`;
+      const bb=pth.getBoundingClientRect(),wb=wrap.getBoundingClientRect();
+      tip.style.left=(bb.x+bb.width/2-wb.x)+"px";tip.style.top=(bb.y-wb.y+10)+"px";tip.style.opacity=1;};
+    pth.addEventListener("mouseenter",show);pth.addEventListener("focus",show);
+    pth.addEventListener("mouseleave",()=>tip.style.opacity=0);
+    pth.addEventListener("blur",()=>tip.style.opacity=0);
+    pth.addEventListener("click",()=>{state.route=pth.dataset.r;
+      $("#routeSel").value=state.route;renderAll();});
+  });
+  $("#tlClock").textContent=`${String(state.hour).padStart(2,"0")}:00–${String((state.hour+1)%24).padStart(2,"0")}:00`;
+  $("#mapTitle").textContent=`Карта загрузки — ${dayLabel(state.day)}`;
+}
+
+/* ═══ Графики ═══ */
+function lineChart({series,labels,note}){
+  const W=920,H=260,P={l:48,r:12,t:14,b:26},iw=W-P.l-P.r,ih=H-P.t-P.b;
+  const maxY=Math.max(1,...series.flatMap(s=>s.hi||s.v))*1.12;
+  const X=i=>P.l+iw*i/Math.max(1,labels.length-1),Y=v=>P.t+ih*(1-v/maxY);
+  let g="";
+  for(let t=0;t<=4;t++){const y=P.t+ih*t/4;
+    g+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="var(--line)"/>
+        <text x="${P.l-7}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmt(maxY*(1-t/4))}</text>`;}
+  const step=Math.ceil(labels.length/12);
+  labels.forEach((l,i)=>{if(i%step===0)
+    g+=`<text x="${X(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${l}</text>`;});
+  series.forEach(s=>{if(s.hi){
+    const up=s.hi.map((v,i)=>`${X(i)},${Y(v)}`).join(" ");
+    const dn=s.lo.map((v,i)=>`${X(i)},${Y(v)}`).reverse().join(" ");
+    g+=`<polygon points="${up} ${dn}" fill="var(--blue-soft)" opacity=".9"/>`;}});
+  series.forEach(s=>{
+    g+=`<polyline points="${s.v.map((v,i)=>`${X(i)},${Y(v)}`).join(" ")}" fill="none"
+      stroke="${s.color}" stroke-width="${s.width||2.5}" ${s.dash?`stroke-dasharray="6 5"`:""} stroke-linejoin="round"/>`;});
+  return `${note?`<p class="chart-note">${note}</p>`:""}
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="График прогноза">${g}</svg>`;
+}
+function barChart({vals,labels,colors,note,aria}){
+  const W=920,H=250,P={l:48,r:12,t:14,b:46},iw=W-P.l-P.r,ih=H-P.t-P.b;
+  const maxY=Math.max(1,...vals)*1.12,bw=iw/vals.length;
+  let g="";
+  for(let t=0;t<=4;t++){const y=P.t+ih*t/4;
+    g+=`<line x1="${P.l}" y1="${y}" x2="${W-P.r}" y2="${y}" stroke="var(--line)"/>
+        <text x="${P.l-7}" y="${y+4}" text-anchor="end" font-size="11" fill="var(--muted)">${fmt(maxY*(1-t/4))}</text>`;}
+  vals.forEach((v,i)=>{const h=ih*v/maxY,x=P.l+bw*i+bw*.14;
+    g+=`<rect x="${x}" y="${P.t+ih-h}" width="${bw*.72}" height="${h}" rx="3" fill="${colors?colors[i]:"var(--blue)"}"/>
+        <text x="${x+bw*.36}" y="${H-30}" text-anchor="end" font-size="10.5" fill="var(--muted)"
+          transform="rotate(-35 ${x+bw*.36} ${H-30})">${labels[i]}</text>`;});
+  return `${note?`<p class="chart-note">${note}</p>`:""}
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="${aria||"Столбчатый график"}">${g}</svg>`;
+}
+
+/* ═══ Вкладки ═══ */
+function sumHour(d,h){return actRoutes().reduce((t,r)=>t+pax(r.id,d,h),0);}
+function tabForecast(){
+  const k=kTotal();
+  if(state.horizon==="day"){
+    const base=[...Array(24)].map((_,h)=>sumHour(state.day,h));
+    const adj=base.map(v=>v*k);
+    const s=[{v:adj,color:"var(--blue)",hi:adj.map(v=>v*1.15),lo:adj.map(v=>v*.85)}];
+    if(Math.abs(k-1)>.001)s.push({v:base,color:"var(--muted)",dash:true,width:2});
+    return lineChart({series:s,labels:[...Array(24)].map((_,h)=>h+":00"),
+      note:`Пассажиропоток по часам, ${dayLabel(state.day)}. Полоса — интервал прогноза ±15%.`})+
+      `<div class="chart-legend"><span class="cl"><i></i>Прогноз со сценарием</span>
+       ${Math.abs(k-1)>.001?`<span class="cl"><i class="dash"></i>Базовый прогноз</span>`:""}
+       <span class="cl"><i class="band"></i>Интервал уверенности</span></div>`;
+  }
+  if(state.horizon==="month"){
+    const v=DATA.days.map(d=>[...Array(24)].reduce((t,_,h)=>t+sumHour(d,h),0)*k);
+    return lineChart({series:[{v,color:"var(--blue)",hi:v.map(x=>x*1.2),lo:v.map(x=>x*.8)}],
+      labels:DATA.days.map(d=>dayLabel(d).slice(0,5)),
+      note:`Суточный поток на весь горизонт прогноза (${DATA.days.length} дн.): видна недельная сезонность и календарь.`});
+  }
+  const byM=new Map();
+  DATA.days.forEach(d=>{const m=d.slice(0,7);
+    byM.set(m,(byM.get(m)||0)+[...Array(24)].reduce((t,_,h)=>t+sumHour(d,h),0)*k);});
+  const ms=[...byM.keys()].sort();
+  return barChart({vals:ms.map(m=>byM.get(m)),
+    labels:ms.map(m=>({"01":"янв","02":"фев","03":"мар","04":"апр","05":"май","06":"июн","07":"июл","08":"авг","09":"сен","10":"окт","11":"ноя","12":"дек"}[m.slice(5)]+" "+m.slice(2,4))),
+    note:"Помесячная оценка по доступному горизонту прогноза. Экстраполяция на год — качественная, вне области обучения.",
+    aria:"Помесячный прогноз"})+
+    `<p class="chart-note">Для годового планирования используйте тренд и сезонный профиль, а не точные значения.</p>`;
+}
+function tabWeek(){
+  const k=kTotal(),agg=[...Array(7)].map(()=>Array(24).fill(0)),cnt=[...Array(7)].map(()=>Array(24).fill(0));
+  DATA.days.forEach(d=>{const w=dowOf(d);
+    for(let h=0;h<24;h++){agg[w][h]+=sumHour(d,h)*k;cnt[w][h]++;}});
+  const avg=agg.map((row,w)=>row.map((v,h)=>cnt[w][h]?v/cnt[w][h]:0));
+  const mx=Math.max(1,...avg.flat());
+  const W=920,H=240,P={l:44,r:12,t:8,b:26},cw=(W-P.l-P.r)/24,ch=(H-P.t-P.b)/7;
+  const dows=["пн","вт","ср","чт","пт","сб","вс"];
+  let g="";
+  avg.forEach((row,w)=>{g+=`<text x="${P.l-8}" y="${P.t+ch*w+ch/2+4}" text-anchor="end" font-size="11" fill="var(--muted)">${dows[w]}</text>`;
+    row.forEach((v,h)=>{g+=`<rect x="${P.l+cw*h+1}" y="${P.t+ch*w+1}" width="${cw-2}" height="${ch-2}" rx="2"
+      fill="var(--blue)" fill-opacity="${.07+.9*v/mx}"><title>${dows[w]} ${h}:00 — ${fmt(v)} пасс/ч</title></rect>`;});});
+  for(let h=0;h<24;h+=3)g+=`<text x="${P.l+cw*h+cw/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${h}:00</text>`;
+  const who=state.route==="all"?"вся сеть":"маршрут "+state.route;
+  return `<p class="chart-note">Средний недельный профиль (${who}, по всем ${DATA.days.length} дням горизонта). Тёмное — больше пассажиров: видно пики будней и провал выходных.</p>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Тепловая карта недели">${g}</svg>`;
+}
+const FACTORS=[
+  {n:"Погода",src:"Open-Meteo",url:"https://open-meteo.com/",upd:"сегодня 06:00",d:2.4,
+   t:"Температура, осадки, снег по часам. Архив для обучения, прогноз для инференса."},
+  {n:"Календарь",src:"isdayoff.ru",url:"https://isdayoff.ru/",upd:"1 сентября",d:5.1,
+   t:"Праздники и переносы, «хвосты» праздников, школьные каникулы Москвы."},
+  {n:"Дорожный трафик",src:"data.mos.ru",url:"https://data.mos.ru/",upd:"вчера 23:00",d:1.2,
+   t:"Исторический паттерн загруженности улиц по часу и дню недели."},
+  {n:"События",src:"KudaGo",url:"https://docs.kudago.com/api/",upd:"сегодня 05:30",d:0.9,
+   t:"Афиша и перекрытия: признак события вблизи трассы маршрута."}];
+function tabFactors(){
+  const mx=Math.max(...FACTORS.map(f=>f.d));
+  return `<p class="chart-note">Вклад источника: рост ошибки MAPE при его исключении из модели (ablation на отложенной выборке).</p>
+  <div class="factors">${FACTORS.map(f=>`
+    <div class="factor"><h3>${f.n}</h3>
+      <div class="src">Источник: <a href="${f.url}" target="_blank" rel="noopener">${f.src}</a></div>
+      <div class="upd">Обновлено: ${f.upd}</div>
+      <p style="font-size:13px;margin:0 0 10px">${f.t}</p>
+      <div class="impact-bar"><i style="width:${f.d/mx*100}%"></i></div>
+      <div class="impact-cap">без источника ошибка выше на ${String(f.d).replace(".",",")} п.п.</div>
+    </div>`).join("")}</div>`;
+}
+function tabRecs(){
+  const k=kTotal(),ov=overloadWindows(k);
+  if(!ov.length)return `<p class="empty">По текущему сценарию перегрузок нет — рекомендации не требуются.</p>`;
+  const rows=ov.map(o=>{
+    const V=vehOf(o.route.id);
+    const add=Math.max(1,Math.ceil(V*(o.peak/CONFIG.target)-V));
+    const after=Math.round(o.peak*V/(V+add)*100);
+    let affected=0;for(let h=o.from;h<o.to;h++)affected+=pax(o.route.id,state.day,h,k);
+    return `<tr><td>${o.route.name}</td>
+      <td>${String(o.from).padStart(2,"0")}:00–${String(o.to).padStart(2,"0")}:00</td>
+      <td style="color:var(--red);font-weight:700">${Math.round(o.peak*100)}%</td>
+      <td class="act">добавить ${add} ТС</td><td class="eff">снизит до ~${after}%</td>
+      <td>${fmt(affected)} пасс.</td></tr>`;}).join("");
+  return `<p class="chart-note">Рассчитано из прогноза; вместимость ${CONFIG.capacity} мест, парк по каждому маршруту оценён из его типичного пика (реальные числа правятся в CONFIG). План выгружается кнопкой «Экспорт CSV».</p>
+  <div class="recs-wrap"><table class="recs">
+    <tr><th>Маршрут</th><th>Окно</th><th>Пик салона</th><th>Действие</th><th>Эффект</th><th>Затронуто</th></tr>
+    ${rows}</table></div>`;
+}
+function renderTab(){
+  const m={forecast:tabForecast,week:tabWeek,factors:tabFactors,recs:tabRecs};
+  $("#tabpane").innerHTML=m[state.tab]();
+  document.querySelectorAll(".tabbar button").forEach(b=>
+    b.setAttribute("aria-selected",b.dataset.tab===state.tab));
+}
+
+/* ═══ Коэффициенты ═══ */
+function renderCoefs(){
+  $("#presets").innerHTML=PRESETS.map(p=>
+    `<button class="preset" data-p="${p.id}" aria-pressed="${state.preset===p.id}">${p.name}</button>`).join("");
+  $("#presets").querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>{
+    const p=PRESETS.find(x=>x.id===b.dataset.p);
+    if(state.preset===p.id){state.preset=null;state.coefs={rain:1,snow:1,event:1,season:1};}
+    else{state.preset=p.id;state.coefs={...p.coefs};}
+    renderCoefs();renderAll();}));
+  $("#coefs").innerHTML=COEF_DEFS.map(c=>`
+    <div class="coef"><div class="coef-top"><span>${c.label}</span>
+      <b id="cv-${c.key}">×${state.coefs[c.key].toFixed(2).replace(".",",")}</b></div>
+      <input type="range" min="${c.min}" max="${c.max}" step="0.01" value="${state.coefs[c.key]}"
+        data-k="${c.key}" aria-label="${c.label}, множитель"></div>`).join("");
+  $("#coefs").querySelectorAll("input").forEach(inp=>{let t;
+    inp.addEventListener("input",()=>{
+      state.coefs[inp.dataset.k]=+inp.value;state.preset=null;
+      document.querySelectorAll(".preset").forEach(b=>b.setAttribute("aria-pressed","false"));
+      $("#cv-"+inp.dataset.k).textContent="×"+(+inp.value).toFixed(2).replace(".",",");
+      updateDelta();clearTimeout(t);t=setTimeout(renderAll,180);});});
+  updateDelta();
+}
+function updateDelta(){
+  const d=Math.round((kTotal()-1)*100),el=$("#deltaNum");
+  el.textContent=(d>0?"+":d<0?"−":"±")+Math.abs(d)+"%";
+  el.className="delta-num "+(d>0?"up":d<0?"down":"flat");
+}
+
+/* ═══ Экспорт ═══ */
+function buildCsv(){
+  const k=kTotal(),lines=["route_id;ts_start;pax;load_pct;model"];
+  actRoutes().forEach(r=>{for(let h=0;h<24;h++)
+    lines.push([r.id,state.day+" "+String(h).padStart(2,"0")+":00",
+      Math.round(pax(r.id,state.day,h,k)),load(r.id,state.day,h,k).toFixed(3),DATA.source.split(" ")[0]].join(";"));});
+  return lines.join("\n");
+}
+
+/* ═══ Источники данных ═══ */
+function setData(d){
+  calibrate(d);
+  DATA=d;state.day=DATA.days[0];state.route="all";
+  $("#srcChip").textContent="данные: "+DATA.source;
+  const b=$("#domainBadge");
+  b.className="badge "+(DATA.source==="демо"?"badge--info":"badge--ok");
+  b.textContent=DATA.source==="демо"?"Демо-данные":"Прогноз модели";
+  $("#daySel").innerHTML=DATA.days.map(d=>`<option value="${d}">${dayLabel(d)}</option>`).join("");
+  $("#routeSel").innerHTML=`<option value="all">Все маршруты (${DATA.routes.length})</option>`+
+    DATA.routes.map(r=>`<option value="${r.id}">${r.name}</option>`).join("");
+  renderAll();
+}
+async function connectApi(){
+  const btn=$("#apiBtn");btn.textContent="API…";
+  try{
+    const h=await fetch(CONFIG.api+"/health").then(r=>r.json());
+    const rows=await fetch(CONFIG.api+"/forecast?horizon=day&limit=100000").then(r=>r.json());
+    if(!rows.length)throw new Error("прогноз пуст — сделайте make submission или make seed");
+    const map=new Map(),daysSet=new Set(),routesSet=new Set();
+    rows.forEach(r=>{const t=parseTs(r.ts_start);if(!t)return;
+      map.set(key(r.route_id,t.day,t.hour),r.pax_in);
+      daysSet.add(t.day);routesSet.add(r.route_id);});
+    const routes=[...routesSet].sort((a,b)=>a.localeCompare(b,"ru",{numeric:true}))
+      .map((id,i)=>({id,name:"Маршрут "+id,color:PALETTE[i%PALETTE.length]}));
+    setData({routes,days:[...daysSet].sort(),map,
+      source:"API "+CONFIG.api+" (модель "+(h.model_version||"?")+")"});
+  }catch(e){alert("Не удалось подключиться к "+CONFIG.api+": "+e.message+
+    "\nПроверьте, что бэкенд поднят (docker compose up) и прогноз загружен (make submission)."); }
+  btn.textContent="API";
+}
+
+/* ═══ Инициализация ═══ */
+function renderAll(){renderKpis();renderAlerts();renderMap();renderTab();}
+function init(){
+  setData(buildDemo());
+  $("#daySel").addEventListener("change",e=>{state.day=e.target.value;renderAll();});
+  $("#routeSel").addEventListener("change",e=>{state.route=e.target.value;renderAll();});
+  document.querySelectorAll(".horizon button").forEach(b=>b.addEventListener("click",()=>{
+    state.horizon=b.dataset.h;state.tab="forecast";
+    document.querySelectorAll(".horizon button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    renderAll();}));
+  document.querySelectorAll(".tabbar button").forEach(b=>b.addEventListener("click",()=>{
+    state.tab=b.dataset.tab;renderTab();}));
+  const slider=$("#hourSlider");
+  slider.addEventListener("input",()=>{state.hour=+slider.value;renderMap();});
+  let timer=null;
+  $("#playBtn").addEventListener("click",()=>{
+    if(timer){clearInterval(timer);timer=null;$("#playBtn").textContent="▶";return;}
+    $("#playBtn").textContent="⏸";
+    timer=setInterval(()=>{state.hour=(state.hour+1)%24;slider.value=state.hour;renderMap();
+      if(state.hour===23){clearInterval(timer);timer=null;$("#playBtn").textContent="▶";}},650);});
+  $("#resetCoefs").addEventListener("click",()=>{
+    state.coefs={rain:1,snow:1,event:1,season:1};state.preset=null;renderCoefs();renderAll();});
+  $("#csvInput").addEventListener("change",e=>{
+    const f=e.target.files[0];if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{try{setData(parseCsv(rd.result,f.name));}
+      catch(err){alert("Ошибка разбора CSV: "+err.message);}};
+    rd.readAsText(f,"utf-8");e.target.value="";});
+  $("#apiBtn").addEventListener("click",connectApi);
+  const dlg=$("#exportDlg");
+  $("#exportBtn").addEventListener("click",()=>{$("#csvArea").value=buildCsv();dlg.showModal();});
+  $("#dlgClose").addEventListener("click",()=>dlg.close());
+  $("#copyCsv").addEventListener("click",async()=>{
+    try{await navigator.clipboard.writeText($("#csvArea").value);
+      $("#copyCsv").textContent="Скопировано";
+      setTimeout(()=>$("#copyCsv").textContent="Скопировать CSV",1500);}
+    catch(e){$("#csvArea").select();}});
+  const themes=["auto","light","dark"],names={auto:"авто",light:"светлая",dark:"тёмная"};
+  $("#themeBtn").addEventListener("click",()=>{
+    state.theme=themes[(themes.indexOf(state.theme)+1)%3];
+    if(state.theme==="auto")document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme",state.theme);
+    $("#themeBtn").textContent="Тема: "+names[state.theme];});
+  renderCoefs();
+}
+init();
+</script>
+</body>
+</html>

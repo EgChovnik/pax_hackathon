@@ -1,0 +1,7 @@
+fastapi==0.115.*
+uvicorn[standard]==0.30.*
+duckdb==1.1.*
+pandas==2.2.*
+pyarrow==17.*
+psycopg2-binary==2.9.*
+openpyxl==3.1.*
